@@ -61,7 +61,13 @@ def configure_logging(app):
         "%(asctime)s %(levelname)s: %(message)s [in %(filename)s: %(lineno)d]"
     )
 
-    file_handler = RotatingFileHandler("logs/app.log", maxBytes=16384, backupCount=20)
+    logdir = os.path.abspath(os.path.dirname(__name__)) + "/logs/"
+    if not os.path.isdir(logdir):
+        os.mkdir(logdir)
+
+    file_handler = RotatingFileHandler(
+        f"{logdir}/app.log", maxBytes=16384, backupCount=20
+    )
     file_handler.setFormatter(file_formatter)
 
     app.logger.setLevel(logging.INFO)
