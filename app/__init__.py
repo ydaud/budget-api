@@ -32,8 +32,7 @@ def create_app():
 
 
 def register_blueprints(app):
-    from app.controllers import (AccountBlueprint, TransactionBlueprint,
-                                 UserBlueprint)
+    from app.controllers import AccountBlueprint, TransactionBlueprint, UserBlueprint
 
     api.register_blueprint(UserBlueprint)
     api.register_blueprint(AccountBlueprint)
