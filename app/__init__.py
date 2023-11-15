@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask
 
 from app.services import api, cors, db, jwt, migrate
 

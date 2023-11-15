@@ -3,5 +3,5 @@
 .env
 __pychache__
 instance
-*.log*
+logs
 migrations
