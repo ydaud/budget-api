@@ -29,8 +29,18 @@ class PlainTransactionSchema(Schema):
     account_id = fields.Int(required=True)
 
 
+class PlainCategoryGroupSchema(Schema):
+    id = fields.Int(dump_only=True)
+    name = fields.Str(required=True)
+    assigned = fields.Float(required=True)
+    activity = fields.Float(required=True)
+
+
 class UserSchema(PlainUserSchema):
     accounts = fields.List(fields.Nested(PlainAccountSchema()), dump_only=True)
+    category_groups = fields.List(
+        fields.Nested(PlainCategoryGroupSchema()), dump_only=True
+    )
 
 
 class AccountSchema(PlainAccountSchema):
@@ -41,3 +51,7 @@ class AccountSchema(PlainAccountSchema):
 class TransactionSchema(PlainTransactionSchema):
     account_id = fields.Int(required=True, load_only=True)
     account = fields.Nested(PlainAccountSchema(), dump_only=True)
+
+
+class CategoryGroupSchema(PlainCategoryGroupSchema):
+    user = fields.Nested(PlainUserSchema(), dump_only=True)

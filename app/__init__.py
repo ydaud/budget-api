@@ -32,11 +32,17 @@ def create_app():
 
 
 def register_blueprints(app):
-    from app.controllers import AccountBlueprint, TransactionBlueprint, UserBlueprint
+    from app.controllers import (
+        AccountBlueprint,
+        TransactionBlueprint,
+        UserBlueprint,
+        CategoryGroupBlueprint,
+    )
 
     api.register_blueprint(UserBlueprint)
     api.register_blueprint(AccountBlueprint)
     app.register_blueprint(TransactionBlueprint)
+    app.register_blueprint(CategoryGroupBlueprint)
 
 
 def initialize_extensions(app):
@@ -46,7 +52,7 @@ def initialize_extensions(app):
     api.init_app(app)
     cors.init_app(app)
 
-    from app.models import AccountModel, TransactionModel, UserModel
+    from app.models import AccountModel, TransactionModel, UserModel, CategoryGroupModel
 
 
 def configure_logging(app):
