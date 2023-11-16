@@ -16,13 +16,24 @@ class TransactionModel(db.Model):
         db.Numeric(precision=10, scale=2, asdecimal=True), nullable=False
     )
 
+    category_id = db.Column(
+        db.Integer, db.ForeignKey("category.id"), unique=False, nullable=False
+    )
+    category = db.relationship("CategoryModel", back_populates="transactions")
+
     account_id = db.Column(
         db.Integer, db.ForeignKey("accounts.id"), unique=False, nullable=False
     )
     account = db.relationship("AccountModel", back_populates="transactions")
 
     def __init__(
-        self, date: datetime, payee: str, amount: float, inflow: bool, account_id: int
+        self,
+        date: datetime,
+        payee: str,
+        amount: float,
+        inflow: bool,
+        account_id: int,
+        category_id: int,
     ):
         self.date = date
         self.payee = payee
@@ -35,6 +46,7 @@ class TransactionModel(db.Model):
         self.amount = amount
         self.raw_value = Decimal(amount) if inflow else Decimal(amount * -1)
         self.account_id = account_id
+        self.category_id = category_id
 
     def __repr__(self):
         return f"<Transaction: {self.payee} {self.raw_value:.2f}>"

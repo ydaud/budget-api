@@ -1,6 +1,7 @@
 .pytest_cache
 .venv
 .env
+coverage.*
 __pychache__
 instance
 logs

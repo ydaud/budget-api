@@ -1,0 +1,68 @@
+{
+    "users": [
+        {
+            "email": "test1@gmail.com",
+            "password": "password",
+            "groups": [
+                {
+                    "name": "Living Expenses",
+                    "categories": [
+                        {"name": "rent"},
+                        {"name": "food"}, 
+                        {"name": "car"}
+                    ]
+                },
+                {
+                    "name": "Discretionary",
+                    "categories": [
+                        {"name": "fun time"},
+                        {"name": "spa"}
+                    ]
+                }
+            ],
+            "accounts": [
+                {
+                    "name": "checking",
+                    "balance": 0.00,
+                    "type": "checking",
+                    "transactions": [
+                        {
+                            "date": "2022-02-11",
+                            "payee": "Sterling",
+                            "inflow": false,
+                            "amount": 200.00,
+                            "category_id": 1
+                        },
+                        {
+                            "date": "2023-01-11",
+                            "payee": "paycheck",
+                            "inflow": true,
+                            "amount": 1000.00,
+                            "category_id": 2
+                        }
+                    ]
+                },
+                {
+                    "name": "savings",
+                    "balance": 0.00,
+                    "type": "saving",
+                    "transactions": [
+                        {
+                            "date": "2022-02-11",
+                            "payee": "Starting Balance",
+                            "inflow": true,
+                            "amount": 200000.12,
+                            "category_id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "email": "test2@gmail.com",
+            "password": "password",
+            "groups": [],
+            "accounts": []
+        }
+    ]
+}

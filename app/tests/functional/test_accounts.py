@@ -1,76 +1,176 @@
 import json
 from decimal import Decimal
+from collections import Counter
 
 from app.models import AccountModel
+
+from app.tests.conftest import load_response
 
 headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
 
-def test_new_account(test_client, user1):
+def test_accounts_added(test_client, data):
     header = headers.copy()
-    header["Authorization"] = user1["access_token"]
-    data = {"name": "test", "balance": 0.00, "type": "checking"}
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
 
-    assert response.status_code == 201
-    assert b"test" in response.data
+    for user in data["users"]:
+        header["Authorization"] = user["access_token"]
+        for account in user["accounts"]:
+            response = test_client.get(f"/accounts/{account['id']}", headers=header)
+            assert response.status_code == 200
 
-    accounts = AccountModel.query.all()
-    assert len(accounts) == 1
-    assert accounts[0].name == "test"
+            response_data = load_response(response)
+            assert response_data["name"] == account["name"]
+            assert response_data["balance"] == account["balance"]
+
+            assert len(response_data["transactions"]) == len(account["transactions"])
 
 
-def test_duplicate_account(test_client, user1):
+def test_get_all_transactions(test_client, data):
+    user = data["users"][0]
+    accounts = user["accounts"]
+
+    number_of_transactions = 0
+    for account in accounts:
+        number_of_transactions += len(account["transactions"])
+
     header = headers.copy()
-    header["Authorization"] = user1["access_token"]
-    data = {"name": "test", "balance": 0.00, "type": "checking"}
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
+    header["Authorization"] = user["access_token"]
+
+    response = test_client.get("/transactions", headers=header)
+    assert response.status_code == 200
+
+    response_data = load_response(response)
+    assert len(response_data) == number_of_transactions
+
+
+def test_get_single_transaction(test_client, data):
+    user = data["users"][0]
+    account = user["accounts"][0]
+    transaction = account["transactions"][0]
+
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
+
+    response = test_client.get(f"/transactions/{transaction['id']}", headers=header)
+    assert response.status_code == 200
+
+    response_data = load_response(response)
+    assert response_data["payee"] == transaction["payee"]
+    assert response_data["date"] == transaction["date"]
+    assert response_data["amount"] == transaction["amount"]
+    assert response_data["inflow"] == transaction["inflow"]
+    assert response_data["category"]["id"] == transaction["id"]
+
+
+def test_get_single_transaction_does_not_exist(test_client, data):
+    user = data["users"][0]
+
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
+
+    response = test_client.get(f"/transactions/1000", headers=header)
+    assert response.status_code == 404
+
+
+def test_add_transaction_to_nonexistent_account(test_client, data):
+    user = data["users"][0]
+
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
+
+    body = {
+        "account_id": "10000",
+        "date": "2023-01-11",
+        "payee": "test",
+        "inflow": False,
+        "amount": 1000.00,
+        "category_id": 1,
+    }
+    response = test_client.post("/transactions", data=json.dumps(body), headers=header)
+    assert response.status_code == 404
+
+
+def test_add_transaction_to_nonexistent_category(test_client, data):
+    user = data["users"][0]
+
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
+
+    body = {
+        "account_id": "10000",
+        "date": "2023-01-11",
+        "payee": "test",
+        "inflow": False,
+        "amount": 1000.00,
+        "category_id": 100,
+    }
+    response = test_client.post("/transactions", data=json.dumps(body), headers=header)
+    assert response.status_code == 404
+
+
+def test_get_all_accounts(test_client, data):
+    user = data["users"][0]
+
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
+
+    response = test_client.get("/accounts", headers=header)
+    assert response.status_code == 200
+
+    response_data = load_response(response)
+    assert len(response_data) == len(user["accounts"])
+
+
+def test_duplicate_account(test_client, data):
+    user = data["users"][0]
+    account = user["accounts"][0]
+
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
+    body = {"name": account["name"], "balance": 0.00, "type": account["type"]}
+    response = test_client.post("/accounts", data=json.dumps(body), headers=header)
 
     assert response.status_code == 409
 
 
-def test_multiple_users(test_client, user1, user2):
+def test_get_nonexistent_account(test_client, data):
+    user = data["users"][0]
+
     header = headers.copy()
-    header["Authorization"] = user1["access_token"]
-    data = {"name": "test", "balance": 0.00, "type": "checking"}
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
+    header["Authorization"] = user["access_token"]
+    response = test_client.get("/accounts/1000", headers=header)
 
-    assert response.status_code == 201
-    assert b"test" in response.data
-    assert b"test1@gmail.com" in response.data
-
-    header["Authorization"] = user2["access_token"]
-    data = {"name": "test", "balance": 0.00, "type": "checking"}
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
-
-    assert response.status_code == 201
-    assert b"test" in response.data
-    assert b"test2@gmail.com" in response.data
-
-    accounts = AccountModel.query.all()
-    assert len(accounts) == 2
+    assert response.status_code == 404
 
 
-def test_update_account(test_client, user1):
+def test_update_account(test_client, data):
+    user = data["users"][0]
+    account = user["accounts"][0]
+
     header = headers.copy()
-    header["Authorization"] = user1["access_token"]
-    data = {"name": "test", "balance": 0.00, "type": "checking"}
-    test_client.post("/accounts", data=json.dumps(data), headers=header)
+    header["Authorization"] = user["access_token"]
 
-    update_data = {"id": 1, "name": "savings"}
-    test_client.put("/accounts/1", data=json.dumps(update_data), headers=header)
+    update_data = {"id": account["id"], "name": "test update account"}
+    response = test_client.put(
+        f"/accounts/{account['id']}", data=json.dumps(update_data), headers=header
+    )
 
-    accounts = AccountModel.query.all()
-    assert len(accounts) == 1
-    assert accounts[0].name == "savings"
+    assert response.status_code == 200
+
+    response = test_client.get(f"/accounts/{account['id']}", headers=header)
+    assert response.status_code == 200
+
+    response_data = load_response(response)
+    assert response_data["name"] == "test update account"
 
 
-def test_update_nonexistent_account(test_client, user1):
+def test_update_nonexistent_account(test_client, data):
+    user = data["users"][0]
+
     header = headers.copy()
-    header["Authorization"] = user1["access_token"]
+    header["Authorization"] = user["access_token"]
 
-    update_data = {"id": 1, "name": "savings"}
+    update_data = {"id": 200, "name": "savings"}
     response = test_client.put(
         "/accounts/4", data=json.dumps(update_data), headers=header
     )
@@ -78,37 +178,22 @@ def test_update_nonexistent_account(test_client, user1):
     assert response.status_code == 404
 
 
-def test_add_transactions(test_client, user1):
+def test_update_account_with_same_name(test_client, data):
+    user = data["users"][0]
+
     header = headers.copy()
-    header["Authorization"] = user1["access_token"]
-    data = {"name": "test", "balance": 0.00, "type": "checking"}
-    test_client.post("/accounts", data=json.dumps(data), headers=header)
+    header["Authorization"] = user["access_token"]
 
-    transactions = [
-        ["2023-02-11", "test1", True, 20.00, "1"],
-        ["2023-02-12", "test2", False, 2.12, "1"],
-        ["2023-02-13", "test3", True, 9.18, "1"],
-        ["2023-02-14", "test4", False, 0.01, "1"],
-        ["2023-02-15", "test5", True, 0.00, "1"],
-    ]
+    body = {"name": "same name", "balance": 0.00, "type": "saving"}
+    response = test_client.post(f"/accounts", data=json.dumps(body), headers=header)
 
-    total = 0
-    for t in transactions:
-        data = {
-            "date": t[0],
-            "payee": t[1],
-            "inflow": t[2],
-            "amount": t[3],
-            "account_id": t[4],
-        }
-        response = test_client.post(
-            "/accounts/1/transactions", data=json.dumps(data), headers=header
-        )
+    assert response.status_code == 201
 
-        assert response.status_code == 201
+    response_data = load_response(response)
 
-        amount = Decimal(t[3]) if t[2] else Decimal(t[3]) * -1
-        total += round(amount, 2)
+    update_data = {"id": response_data["id"], "name": "same name"}
+    response = test_client.put(
+        f"/accounts/{response_data['id']}", data=json.dumps(update_data), headers=header
+    )
 
-    response = test_client.get("/accounts", headers=header)
-    assert f"{total}".encode() in response.data
+    assert response.status_code == 409

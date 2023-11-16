@@ -2,7 +2,7 @@ import logging
 
 from flask.views import MethodView
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from flask_smorest import Blueprint, abort
+from flask_smorest import Blueprint
 
 from app import db
 from app.models import AccountModel
@@ -31,10 +31,9 @@ class AllAccounts(MethodView):
         type = account_data["type"]
         user_id = get_jwt_identity()
 
-        query_name = AccountModel.query.filter_by(user_id=user_id, name=name).first()
-        if query_name:
-            LOG.error(f"Account {name} already exists")
-            abort(409, message="An account with that name already exists")
+        AccountModel.query.filter_by(user_id=user_id, name=name).none_or_409(
+            description="An account with that name already exists"
+        )
 
         account = AccountModel(name, balance, type, user_id)
 
@@ -50,11 +49,9 @@ class Account(MethodView):
     @blp.response(200, AccountSchema)
     def get(self, account_id):
         user_id = get_jwt_identity()
-        account = AccountModel.query.filter_by(user_id=user_id, id=account_id).first()
-
-        if not account:
-            LOG.error(f"Account {id} does not exist")
-            abort(404, message="An account with that id does not exist.")
+        account = AccountModel.query.filter_by(
+            user_id=user_id, id=account_id
+        ).first_or_404(description="An account with that id does not exist.")
 
         return account
 
@@ -63,20 +60,15 @@ class Account(MethodView):
     @blp.response(200, AccountSchema)
     def put(self, new_account_data, account_id):
         user_id = get_jwt_identity()
-        account = AccountModel.query.filter_by(user_id=user_id, id=account_id).first()
-
-        if not account:
-            LOG.error(f"Account {id} does not exist")
-            abort(404, message="An account with that id does not exist.")
+        account = AccountModel.query.filter_by(
+            user_id=user_id, id=account_id
+        ).first_or_404(description="An account with that id does not exist.")
 
         name = new_account_data.get("name")
         if name:
-            query_name = AccountModel.query.filter_by(
-                user_id=user_id, name=name
-            ).first()
-            if query_name:
-                LOG.error(f"Account {name} already exists")
-                abort(409, message="An account with that name already exists")
+            AccountModel.query.filter_by(user_id=user_id, name=name).none_or_409(
+                description="An account with that name already exists"
+            )
 
         account.update(
             new_name=new_account_data.get("name"), new_type=new_account_data.get("type")

@@ -2,100 +2,85 @@ import json
 
 from app.models import UserModel
 
+from app.tests.conftest import load_response
+
+
 headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
 
 def test_new_user(test_client):
-    email = "ydaud@gmail.com"
-    password = "password"
-    data = {"email": email, "password": password}
+    body = {"email": "user_test@test.com", "password": "password"}
 
-    response = test_client.post("/register", data=json.dumps(data), headers=headers)
+    response = test_client.post("/register", data=json.dumps(body), headers=headers)
     assert response.status_code == 201
 
     users = UserModel.query.all()
-    assert len(users) == 1
-    assert users[0].email == email
-    assert users[0].password != password
-    assert users[0].__repr__() == f"<User: {email}>"
+    assert users[0].email == body["email"]
+    assert users[0].password != body["password"]
+    assert users[0].__repr__() == f"<User: {body['email']}>"
 
 
-def test_duplicate_user(test_client_with_registered_user):
-    data = {"email": "ydaud@gmail.com", "password": "password"}
+def test_duplicate_user(test_client, data):
+    user_email = data["users"][0]["email"]
 
-    response = test_client_with_registered_user.post(
-        "/register", data=json.dumps(data), headers=headers
-    )
+    body = {"email": user_email, "password": "password"}
+    response = test_client.post("/register", data=json.dumps(body), headers=headers)
+
     assert response.status_code == 409
 
 
 def test_wrong_format(test_client):
-    data = {"email": "ydaudmail.com", "password": "password"}
+    body = {"email": "ydaudmail.com", "password": "password"}
 
-    response = test_client.post("/register", data=json.dumps(data), headers=headers)
+    response = test_client.post("/register", data=json.dumps(body), headers=headers)
     assert response.status_code == 422
 
 
-def test_multiple_users(test_client_with_registered_user):
-    email = "yahya@gmail.com"
-    password = "password"
-    data = {"email": email, "password": password}
+def test_multiple_users(test_client, data):
+    header = headers.copy()
 
-    response = test_client_with_registered_user.post(
-        "/register", data=json.dumps(data), headers=headers
-    )
-    assert response.status_code == 201
+    for user in data["users"]:
+        header["Authorization"] = user["access_token"]
+        response = test_client.get("/user", headers=header)
 
-    users = UserModel.query.all()
-    assert len(users) == 2
-    assert users[1].email == email
-    assert users[1].password != password
-    assert users[1].__repr__() == f"<User: {email}>"
+        assert response.status_code == 200
+
+        response_data = load_response(response)
+        assert response_data["email"] == user["email"]
 
 
-def test_login(test_client_with_registered_user):
-    data = {"email": "ydaud@gmail.com", "password": "password"}
+def test_login(test_client, data):
+    user_email = data["users"][0]["email"]
 
-    response = test_client_with_registered_user.post(
-        "/login", data=json.dumps(data), headers=headers
-    )
+    body = {"email": user_email, "password": "password"}
+
+    response = test_client.post("/login", data=json.dumps(body), headers=headers)
     assert response.status_code == 200
     assert b"access_token" in response.data
 
 
 def test_login_error(test_client):
-    data = {"email": "ydau@gmail.com", "password": "password"}
+    data = {"email": "fail@test.com", "password": "password"}
 
     response = test_client.post("/login", data=json.dumps(data), headers=headers)
     assert response.status_code == 401
 
 
-def test_logout(test_client_with_registered_user):
-    data = {"email": "ydaud@gmail.com", "password": "password"}
+def test_logout(test_client, data):
+    user = data["users"][0]
 
-    response = test_client_with_registered_user.post(
-        "/login", data=json.dumps(data), headers=headers
-    )
-    assert response.status_code == 200
-    assert b"access_token" in response.data
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
 
-    resp = response.data.decode().replace("'", '"')
-    resp = json.loads(resp)
-    access_token = resp["access_token"]
-
-    header = {"Authorization": f"Bearer {access_token}"}
-
-    response = test_client_with_registered_user.post("/logout", headers=header)
+    response = test_client.post("/logout", headers=header)
     assert response.status_code == 200
 
-    header = {"Authorization": f"Bearer {access_token}"}
 
-    response = test_client_with_registered_user.post("/logout", headers=header)
-    assert response.status_code == 401
+def test_revoked_token(test_client, data):
+    user = data["users"][0]
 
-
-def test_logout_error(test_client):
-    header = {"Authorization": f"Bearer wrongtoken"}
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
 
     response = test_client.post("/logout", headers=header)
     assert response.status_code == 401

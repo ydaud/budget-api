@@ -5,7 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint, abort
 
 from app import db
-from app.models import AccountModel, TransactionModel
+from app.models import AccountModel, TransactionModel, CategoryModel, CategoryGroupModel
 from app.schemas import TransactionSchema
 
 LOG = logging.getLogger(__name__)
@@ -15,32 +15,51 @@ blp = Blueprint(
 )
 
 
-@blp.route("/accounts/<string:account_id>/transactions")
+@blp.route("/transactions")
 class Transaction(MethodView):
     @jwt_required()
     @blp.response(200, TransactionSchema(many=True))
     def get(self):
         user_id = get_jwt_identity()
-        transactions = TransactionModel.query.filter_by(user_id=user_id).all()
+        transactions = (
+            TransactionModel.query.join(AccountModel)
+            .filter(AccountModel.user_id == user_id)
+            .all()
+        )
         return transactions
 
     @jwt_required()
     @blp.arguments(TransactionSchema)
     @blp.response(201, TransactionSchema)
-    def post(self, transaction, account_id):
+    def post(self, transaction):
         user_id = get_jwt_identity()
+        account_id = transaction["account_id"]
+        category_id = transaction["category_id"]
 
-        account = AccountModel.query.filter_by(user_id=user_id, id=account_id).first()
-        if not account:
-            LOG.error(f"Account {account_id} does not exist")
-            abort(409, message="An account with that id does not exist")
+        account = AccountModel.query.filter_by(
+            user_id=user_id, id=account_id
+        ).first_or_404()
+
+        category = (
+            CategoryModel.query.join(CategoryGroupModel)
+            .filter(
+                CategoryGroupModel.user_id == user_id, CategoryModel.id == category_id
+            )
+            .first_or_404()
+        )
 
         payee = transaction["payee"]
         date = transaction["date"]
         inflow = transaction["inflow"]
         amount = transaction["amount"]
+        category_id = category.id
         transaction = TransactionModel(
-            date=date, payee=payee, amount=amount, inflow=inflow, account_id=account_id
+            date=date,
+            payee=payee,
+            amount=amount,
+            inflow=inflow,
+            account_id=account_id,
+            category_id=category_id,
         )
 
         account.add_balance(transaction.raw_value)
@@ -52,13 +71,13 @@ class Transaction(MethodView):
         return transaction
 
 
-@blp.route("/accounts/<string:account_id>/transactions/<string:transaction_id>")
+@blp.route("/transactions/<string:transaction_id>")
 class Transaction(MethodView):
     @jwt_required()
     @blp.response(200, TransactionSchema)
     def get(self, transaction_id):
         user_id = get_jwt_identity()
-        transactions = TransactionModel.query.filter_by(
-            user_id=user_id, transaction_id=transaction_id
-        ).all()
-        return transactions
+        transaction = TransactionModel.query.filter_by(id=transaction_id).first_or_404(
+            description="transaction does not exist"
+        )
+        return transaction

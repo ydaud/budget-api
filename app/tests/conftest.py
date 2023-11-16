@@ -19,7 +19,7 @@ def new_user():
     return user
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def test_client():
     os.environ["CONFIG_TYPE"] = "app.config.TestingConfig"
     app = create_app()
@@ -32,13 +32,82 @@ def test_client():
             db.drop_all()
 
 
-@pytest.fixture(scope="function")
-def test_client_with_registered_user(test_client):
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
-    data = {"email": "ydaud@gmail.com", "password": "password"}
-    test_client.post("/register", data=json.dumps(data), headers=headers)
+@pytest.fixture(scope="module")
+def data(test_client):
+    f = open("app/tests/resources/data.json")
+    json_data = json.load(f)
 
-    yield test_client
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+
+    for user in json_data["users"]:
+        data = {"email": user["email"], "password": user["password"]}
+
+        register_user(test_client, data, headers)
+        access_token = login(test_client, data, headers)
+
+        user["access_token"] = "Bearer " + access_token
+        headers["Authorization"] = user["access_token"]
+
+        for group in user["groups"]:
+            data = {"name": group["name"]}
+            response = test_client.post(
+                "/group", data=json.dumps(data), headers=headers
+            )
+            response = load_response(response)
+            group["id"] = response["id"]
+
+            for category in group["categories"]:
+                body = {"name": category["name"], "category_group_id": group["id"]}
+                response = test_client.post(
+                    "/category", data=json.dumps(body), headers=headers
+                )
+                response_data = load_response(response)
+                category["id"] = response_data["id"]
+
+        for account in user["accounts"]:
+            body = {
+                "name": account["name"],
+                "balance": account["balance"],
+                "type": account["type"],
+            }
+            response = test_client.post(
+                "/accounts", data=json.dumps(body), headers=headers
+            )
+            response_data = load_response(response)
+            account["id"] = response_data["id"]
+            total = 0.00
+
+            for transaction in account["transactions"]:
+                body = {
+                    "account_id": account["id"],
+                    "date": transaction["date"],
+                    "payee": transaction["payee"],
+                    "inflow": transaction["inflow"],
+                    "amount": transaction["amount"],
+                    "category_id": transaction["category_id"],
+                }
+                response = test_client.post(
+                    f"/transactions",
+                    data=json.dumps(body),
+                    headers=headers,
+                )
+                response_data = load_response(response)
+                transaction["id"] = response_data["id"]
+
+                if transaction["inflow"]:
+                    total += transaction["amount"]
+                else:
+                    total -= transaction["amount"]
+
+            account["balance"] = total
+
+    return json_data
+
+
+def load_response(response):
+    resp = response.data.decode().replace("'", '"')
+    resp = json.loads(resp)
+    return resp
 
 
 def register_user(client, data, headers):
@@ -47,128 +116,7 @@ def register_user(client, data, headers):
 
 def login(client, data, headers):
     response = client.post("/login", data=json.dumps(data), headers=headers)
-    resp = response.data.decode().replace("'", '"')
-    resp = json.loads(resp)
-    access_token = resp["access_token"]
+    response = load_response(response)
+    access_token = response["access_token"]
 
     return access_token
-
-
-@pytest.fixture(scope="function")
-def user1(test_client):
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
-    data = {"email": "test1@gmail.com", "password": "password"}
-
-    register_user(test_client, data, headers)
-    access_token = login(test_client, data, headers)
-
-    data["access_token"] = "Bearer " + access_token
-
-    yield data
-
-
-@pytest.fixture(scope="function")
-def user2(test_client):
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
-    data = {"email": "test2@gmail.com", "password": "password"}
-
-    register_user(test_client, data, headers)
-    access_token = login(test_client, data, headers)
-
-    data["access_token"] = "Bearer " + access_token
-
-    yield data
-
-
-@pytest.fixture(scope="function")
-def user1_with_data(test_client, user1):
-    header = {"Content-Type": "application/json", "Accept": "application/json"}
-    header["Authorization"] = user1["access_token"]
-    data = {"name": "test1", "balance": 0.00, "type": "checking"}
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
-    resp = response.data.decode().replace("'", '"')
-    resp = json.loads(resp)
-
-    transactions = [
-        ["2023-02-11", "paycheque", True, 20.00, "1"],
-        ["2023-02-12", "lights", False, 2.12, "1"],
-        ["2023-02-13", "camera", True, 9.18, "1"],
-        ["2023-02-14", "actors", False, 0.01, "1"],
-        ["2023-02-15", "set", True, 0.00, "1"],
-    ]
-
-    for t in transactions:
-        data = {
-            "date": t[0],
-            "payee": t[1],
-            "inflow": t[2],
-            "amount": t[3],
-            "account_id": t[4],
-        }
-        test_client.post(
-            f"/accounts/{resp['id']}/transactions",
-            data=json.dumps(data),
-            headers=header,
-        )
-
-    yield user1
-
-
-@pytest.fixture(scope="function")
-def user2_with_data(test_client, user2):
-    header = {"Content-Type": "application/json", "Accept": "application/json"}
-    header["Authorization"] = user2["access_token"]
-    data = {"name": "test_account_1", "balance": 0.00, "type": "checking"}
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
-    resp = response.data.decode().replace("'", '"')
-    resp = json.loads(resp)
-
-    transactions = [
-        ["2023-02-11", "aaa", True, 10.00, "1"],
-        ["2023-02-13", "gas", True, 6.01, "1"],
-        ["2023-02-14", "rent", False, 1.01, "1"],
-        ["2023-02-15", "test5", True, 2.00, "1"],
-    ]
-
-    for t in transactions:
-        data = {
-            "date": t[0],
-            "payee": t[1],
-            "inflow": t[2],
-            "amount": t[3],
-            "account_id": t[4],
-        }
-        test_client.post(
-            f"/accounts/{resp['id']}/transactions",
-            data=json.dumps(data),
-            headers=header,
-        )
-
-    data = {"name": "test_account_2", "balance": 0.00, "type": "checking"}
-    response = test_client.post("/accounts", data=json.dumps(data), headers=header)
-    resp = response.data.decode().replace("'", '"')
-    resp = json.loads(resp)
-
-    transactions = [
-        ["2023-02-11", "test1", True, 100.00, "1"],
-        ["2023-02-13", "rent", True, 2000.00, "1"],
-        ["2023-02-14", "help", False, 1000.00, "1"],
-        ["2023-02-15", "me", True, 5400.00, "1"],
-        ["2023-02-15", "zelle", False, 16.99, "1"],
-    ]
-
-    for t in transactions:
-        data = {
-            "date": t[0],
-            "payee": t[1],
-            "inflow": t[2],
-            "amount": t[3],
-            "account_id": t[4],
-        }
-        test_client.post(
-            f"/accounts/{resp['id']}/transactions",
-            data=json.dumps(data),
-            headers=header,
-        )
-
-    yield user2

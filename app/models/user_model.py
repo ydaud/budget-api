@@ -11,6 +11,9 @@ class UserModel(db.Model):
     password = db.Column(db.String(80), nullable=False)
 
     accounts = db.relationship("AccountModel", back_populates="user", lazy="dynamic")
+    category_groups = db.relationship(
+        "CategoryGroupModel", back_populates="user", lazy="dynamic"
+    )
 
     db.UniqueConstraint(email)
 
