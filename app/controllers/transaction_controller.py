@@ -34,32 +34,21 @@ class Transaction(MethodView):
     def post(self, transaction):
         user_id = get_jwt_identity()
         account_id = transaction["account_id"]
-        category_id = transaction["category_id"]
 
         account = AccountModel.query.filter_by(
             user_id=user_id, id=account_id
         ).first_or_404()
 
-        category = (
-            CategoryModel.query.join(CategoryGroupModel)
-            .filter(
-                CategoryGroupModel.user_id == user_id, CategoryModel.id == category_id
-            )
-            .first_or_404()
-        )
-
         payee = transaction["payee"]
         date = transaction["date"]
         inflow = transaction["inflow"]
         amount = transaction["amount"]
-        category_id = category.id
         transaction = TransactionModel(
             date=date,
             payee=payee,
             amount=amount,
             inflow=inflow,
             account_id=account_id,
-            category_id=category_id,
         )
 
         account.add_balance(transaction.raw_value)

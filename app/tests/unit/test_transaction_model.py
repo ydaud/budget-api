@@ -8,7 +8,6 @@ def test_transaction():
         amount=10.12,
         inflow=True,
         account_id=1,
-        category_id=1,
     )
 
     assert transaction.date == "20230228"
@@ -27,7 +26,6 @@ def test_amounts():
         amount=10.12,
         inflow=True,
         account_id=1,
-        category_id=1,
     )
 
     assert transaction.amount == 10.12
@@ -41,7 +39,6 @@ def test_amounts():
         amount=10.12,
         inflow=False,
         account_id=1,
-        category_id=1,
     )
 
     assert transaction.amount == 10.12
@@ -55,7 +52,6 @@ def test_amounts():
         amount=-10.12,
         inflow=True,
         account_id=1,
-        category_id=1,
     )
 
     assert transaction.amount == 10.12
@@ -69,7 +65,6 @@ def test_amounts():
         amount=-10.12,
         inflow=False,
         account_id=1,
-        category_id=1,
     )
 
     assert transaction.amount == 10.12

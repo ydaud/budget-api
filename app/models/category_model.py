@@ -12,10 +12,6 @@ class CategoryModel(db.Model):
     )
     category_group = db.relationship("CategoryGroupModel", back_populates="categories")
 
-    transactions = db.relationship(
-        "TransactionModel", back_populates="category", lazy="dynamic"
-    )
-
     def __init__(self, name: str, category_group_id: int):
         self.name = name
         self.category_group_id = category_group_id
