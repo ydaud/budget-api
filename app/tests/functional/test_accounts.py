@@ -59,6 +59,7 @@ def test_get_single_transaction(test_client, data):
     assert response_data["date"] == transaction["date"]
     assert response_data["amount"] == transaction["amount"]
     assert response_data["inflow"] == transaction["inflow"]
+    assert response_data["category"]["id"] == transaction["id"]
 
 
 def test_get_single_transaction_does_not_exist(test_client, data):
@@ -83,6 +84,25 @@ def test_add_transaction_to_nonexistent_account(test_client, data):
         "payee": "test",
         "inflow": False,
         "amount": 1000.00,
+        "category_id": 1,
+    }
+    response = test_client.post("/transactions", data=json.dumps(body), headers=header)
+    assert response.status_code == 404
+
+
+def test_add_transaction_to_nonexistent_category(test_client, data):
+    user = data["users"][0]
+
+    header = headers.copy()
+    header["Authorization"] = user["access_token"]
+
+    body = {
+        "account_id": "10000",
+        "date": "2023-01-11",
+        "payee": "test",
+        "inflow": False,
+        "amount": 1000.00,
+        "category_id": 100,
     }
     response = test_client.post("/transactions", data=json.dumps(body), headers=header)
     assert response.status_code == 404

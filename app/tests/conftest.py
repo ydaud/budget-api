@@ -84,6 +84,7 @@ def data(test_client):
                     "payee": transaction["payee"],
                     "inflow": transaction["inflow"],
                     "amount": transaction["amount"],
+                    "category_id": transaction["category_id"],
                 }
                 response = test_client.post(
                     f"/transactions",
