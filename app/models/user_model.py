@@ -10,6 +10,7 @@ class UserModel(db.Model):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
 
+    budgets = db.relationship("BudgetModel", back_populates="user", lazy="dynamic")
     accounts = db.relationship("AccountModel", back_populates="user", lazy="dynamic")
     category_groups = db.relationship(
         "CategoryGroupModel", back_populates="user", lazy="dynamic"

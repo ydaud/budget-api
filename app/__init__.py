@@ -37,12 +37,14 @@ def register_blueprints(app):
         TransactionBlueprint,
         UserBlueprint,
         CategoryBlueprint,
+        BudgetBlueprint,
     )
 
     api.register_blueprint(UserBlueprint)
     api.register_blueprint(AccountBlueprint)
     app.register_blueprint(TransactionBlueprint)
     app.register_blueprint(CategoryBlueprint)
+    app.register_blueprint(BudgetBlueprint)
 
 
 def initialize_extensions(app):
@@ -58,6 +60,9 @@ def initialize_extensions(app):
         UserModel,
         CategoryGroupModel,
         CategoryModel,
+        BudgetModel,
+        MonthModel,
+        EntryModel,
     )
 
 
